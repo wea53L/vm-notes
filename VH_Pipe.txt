@@ -1,3 +1,6 @@
+# raw notes for attacking  the VM "Pipe". 
+# complete blog post at http://frequentlyinaccurate.net/2016/02/vulnhub-pipe-walkthrough/
+
 # attacker localhost = 192.168.56.1
 
 
