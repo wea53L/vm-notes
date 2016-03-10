@@ -1,0 +1,8 @@
+# https://www.vmware.com/support/developer/ovf/
+$ cd /Applications/VMware OVF Tool/
+$ ./ovftool <pathto>sleepy.ova <pathto>sleepy.ovf
+# trash .mf files
+# textedit .ovf, find and replace "ElementName" with "Caption"
+# and "vmware.sata.ahci" with "AHCI"
+# load into Virtualbox
+
