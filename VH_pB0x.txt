@@ -1,0 +1,45 @@
+pandora's b0x
+
+# source material: 
+# http://jellevergeer.com/pandoras-box/
+# http://rastamouse.me/writeups/2015/pandoras-box-1-level-0/
+
+
+discover
+$ nmap -sP 192.168.56.0/24
+192.168.56.101
+
+$ nmap -sV 192.168.56.101
+Nmap scan report for 192.168.56.101
+Host is up (0.0022s latency).
+Not shown: 999 closed ports
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 5.9p1 Debian 5ubuntu1.4 (Ubuntu Linux; protocol 2.0)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Service detection performed. Please report any incorrect results at http://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 14.54 seconds
+
+# reading other tutorials indicates this is not all the open ports. try again
+# what do -n  - // no dns resolution
+# and -p- - // -p specifies a port, - means all 65k
+# do? 
+
+Starting Nmap 6.47 ( http://nmap.org ) at 2016-05-08 21:54 EDT
+Nmap scan report for 192.168.56.101
+Host is up (0.00065s latency).
+Not shown: 65533 closed ports
+PORT      STATE SERVICE
+22/tcp    open  ssh
+54311/tcp open  unknown
+MAC Address: 08:00:27:A6:62:F6 (Cadmus Computer Systems)
+
+Nmap done: 1 IP address (1 host up) scanned in 15.59 seconds
+
+# ok, everyone else discovers a timing attack. dang. This is bit for bit 
+# copied from wiser folks than i. but i need the experience and hands on
+# pretty happy they like python tho. this script i ported from python2-3
+# 
+
+/vm-notes/pB0x1.py
+
