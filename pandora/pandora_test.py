@@ -41,7 +41,7 @@ for n in range(0, 62):
 
 		if average < 0.002:
 			passwd = passwd + char
-			sys.stdout.write("\r" + passwd)
+			sys.stdout.write("\r" + passwd	)
 			sys.stdout.flush()
 			break
 

