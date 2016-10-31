@@ -1,0 +1,31 @@
+root@kali:~# nmap -sS 172.16.161.0/24
+
+Starting Nmap 7.25BETA1 ( https://nmap.org ) at 2016-10-05 11:13 EDT
+Nmap scan report for 172.16.161.1
+Host is up (0.00037s latency).
+Not shown: 999 filtered ports
+PORT   STATE SERVICE
+22/tcp open  ssh
+MAC Address: 00:50:56:C0:00:01 (VMware)
+
+Nmap scan report for 172.16.161.130
+Host is up (0.00023s latency).
+Not shown: 997 closed ports
+PORT     STATE SERVICE
+22/tcp   open  ssh
+111/tcp  open  rpcbind
+8088/tcp open  radan-http
+MAC Address: 00:0C:29:F1:59:47 (VMware)
+
+Nmap scan report for 172.16.161.254
+Host is up (0.00013s latency).
+All 1000 scanned ports on 172.16.161.254 are filtered
+MAC Address: 00:50:56:F5:99:83 (VMware)
+
+Nmap scan report for 172.16.161.129
+Host is up (0.0000050s latency).
+All 1000 scanned ports on 172.16.161.129 are closed
+
+Nmap done: 256 IP addresses (4 hosts up) scanned in 34.29 seconds
+
+
